@@ -1,54 +1,46 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
-import tensorflow as tf
 import pickle
 
-# Load TFLite model
-interpreter = tf.lite.Interpreter(model_path="model_cancer_prediction.tflite")
-interpreter.allocate_tensors()
+# Load model dan scaler
+with open("model.pkl", "rb") as f:
+    model = pickle.load(f)
 
-# Load Scaler
 with open("scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-# Streamlit UI
+# Judul
 st.title("Cancer Prediction App")
 
-age = st.number_input("Age", min_value=0, max_value=120, step=1)
-gender = st.selectbox("Gender", ["Male", "Female"])
-bmi = st.number_input("BMI", min_value=10.0, max_value=50.0, step=0.1)
-smoking = st.selectbox("Smoking", ["No", "Yes"])
-genetic_risk = st.selectbox("Genetic Risk", ["No", "Yes"])
-physical_activity = st.selectbox("Physical Activity", ["Low", "Moderate", "High"])
-alcohol_intake = st.selectbox("Alcohol Intake", ["No", "Yes"])
-cancer_history = st.selectbox("Cancer History", ["No", "Yes"])
+# Sidebar untuk input
+st.sidebar.header("Masukkan Data Pasien")
 
-# Encoding input
-input_data = np.array([
-    age,
-    1 if gender == "Male" else 0,
-    bmi,
-    1 if smoking == "Yes" else 0,
-    1 if genetic_risk == "Yes" else 0,
-    {"Low": 0, "Moderate": 1, "High": 2}[physical_activity],
-    1 if alcohol_intake == "Yes" else 0,
-    1 if cancer_history == "Yes" else 0
-]).reshape(1, -1)
+# Input dari user
+gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
+age = st.sidebar.slider("Age", 20, 90, 30)
+bmi = st.sidebar.slider("BMI", 15.0, 50.0, 22.5)
+smoking = st.sidebar.selectbox("Smoking Status", ["No", "Yes"])
+alcohol = st.sidebar.selectbox("Alcohol Intake", ["No", "Yes"])
+physical = st.sidebar.selectbox("Physical Activity", ["Low", "Moderate", "High"])
+cancer_history = st.sidebar.selectbox("Cancer History", ["No", "Yes"])
 
-# Scale input
-input_data_scaled = scaler.transform(input_data)
+# Konversi input ke numerik sesuai pelatihan model
+gender = 1 if gender == "Male" else 0
+smoking = 1 if smoking == "Yes" else 0
+alcohol = 1 if alcohol == "Yes" else 0
+cancer_history = 1 if cancer_history == "Yes" else 0
+physical_dict = {"Low": 0, "Moderate": 1, "High": 2}
+physical = physical_dict[physical]
 
-# Run inference with TFLite
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
+# Gabungkan input
+input_data = np.array([[gender, age, bmi, smoking, alcohol, physical, cancer_history]])
 
-interpreter.set_tensor(input_details[0]['index'], input_data_scaled.astype(np.float32))
-interpreter.invoke()
-prediction = interpreter.get_tensor(output_details[0]['index'])
+# Scaling
+input_scaled = scaler.transform(input_data)
 
-# Show result
-st.subheader("Prediction Result")
-if prediction[0][0] > 0.5:
-    st.error("Cancer Detected (Positive)")
-else:
-    st.success("No Cancer Detected (Negative)")
+# Tombol prediksi
+if st.button("Predict"):
+    prediction = model.predict(input_scaled)
+    hasil = "Cancer Detected" if prediction[0] == 1 else "No Cancer Detected"
+    st.success(f"Prediction Result: {hasil}")
