@@ -1,6 +1,11 @@
 import streamlit as st
 import joblib
 import numpy as np
+st.set_page_config(page_title="Cancer Risk Prediction App")
+
+st.title("🔬 Cancer Risk Prediction App")
+st.markdown("This application predicts the risk of cancer based on patient information.")
+
 
 # Load model dan scaler
 model = joblib.load("model.pkl")        # pastikan file ini tersedia di folder sama
