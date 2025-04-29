@@ -1,49 +1,54 @@
 import streamlit as st
 import numpy as np
 import tensorflow as tf
-import joblib
+import pickle
 
-# Load scaler
-scaler = joblib.load("scaler.pkl")
-
-# Load .tflite model
+# Load TFLite model
 interpreter = tf.lite.Interpreter(model_path="model_cancer_prediction.tflite")
 interpreter.allocate_tensors()
 
-# Get input/output details
+# Load Scaler
+with open("scaler.pkl", "rb") as f:
+    scaler = pickle.load(f)
+
+# Streamlit UI
+st.title("Cancer Prediction App")
+
+age = st.number_input("Age", min_value=0, max_value=120, step=1)
+gender = st.selectbox("Gender", ["Male", "Female"])
+bmi = st.number_input("BMI", min_value=10.0, max_value=50.0, step=0.1)
+smoking = st.selectbox("Smoking", ["No", "Yes"])
+genetic_risk = st.selectbox("Genetic Risk", ["No", "Yes"])
+physical_activity = st.selectbox("Physical Activity", ["Low", "Moderate", "High"])
+alcohol_intake = st.selectbox("Alcohol Intake", ["No", "Yes"])
+cancer_history = st.selectbox("Cancer History", ["No", "Yes"])
+
+# Encoding input
+input_data = np.array([
+    age,
+    1 if gender == "Male" else 0,
+    bmi,
+    1 if smoking == "Yes" else 0,
+    1 if genetic_risk == "Yes" else 0,
+    {"Low": 0, "Moderate": 1, "High": 2}[physical_activity],
+    1 if alcohol_intake == "Yes" else 0,
+    1 if cancer_history == "Yes" else 0
+]).reshape(1, -1)
+
+# Scale input
+input_data_scaled = scaler.transform(input_data)
+
+# Run inference with TFLite
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
-# App UI
-st.title("Cancer Prediction App")
-st.markdown("Masukkan nilai dari 3 fitur di bawah ini:")
+interpreter.set_tensor(input_details[0]['index'], input_data_scaled.astype(np.float32))
+interpreter.invoke()
+prediction = interpreter.get_tensor(output_details[0]['index'])
 
-# Input user
-perimeter = st.number_input("Perimeter Mean", value=0.00, format="%.2f")
-area = st.number_input("Area Mean", value=0.00, format="%.2f")
-smoothness = st.number_input("Smoothness Mean", value=0.00, format="%.5f")
-
-# Prediksi saat tombol ditekan
-if st.button("Prediksi"):
-    try:
-        # Buat array input
-        input_data = np.array([[perimeter, area, smoothness]])
-        
-        # Scaling
-        input_scaled = scaler.transform(input_data).astype(np.float32)
-
-        # Set input ke model
-        interpreter.set_tensor(input_details[0]['index'], input_scaled)
-
-        # Run inference
-        interpreter.invoke()
-
-        # Ambil output prediksi
-        prediction = interpreter.get_tensor(output_details[0]['index'])
-
-        # Tampilkan hasil
-        result = "Kanker Ganas" if prediction[0][0] > 0.5 else "Kanker Jinak"
-        st.success(f"Hasil Prediksi: {result} (Probabilitas: {prediction[0][0]:.2f})")
-
-    except Exception as e:
-        st.error(f"Terjadi error: {str(e)}")
+# Show result
+st.subheader("Prediction Result")
+if prediction[0][0] > 0.5:
+    st.error("Cancer Detected (Positive)")
+else:
+    st.success("No Cancer Detected (Negative)")
