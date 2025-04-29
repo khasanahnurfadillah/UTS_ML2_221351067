@@ -17,8 +17,6 @@ with col1:
     blood_pressure = st.slider("Blood Pressure", 80, 200, 120)
     cancer_type = st.selectbox("Cancer Type", ["Type A", "Type B", "Type C"])
     radiation_therapy = st.selectbox("Radiation Therapy", ["No", "Yes"])
-
-with col2:
     gender = st.selectbox("Gender", ["Male", "Female"])
     cancer_history = st.selectbox("Cancer History in Family", ["No", "Yes"])
     smoker = st.selectbox("Smoker", ["No", "Yes"])
