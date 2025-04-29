@@ -41,9 +41,6 @@ if st.button("Predict"):
     # Scaling
     scaled_data = scaler.transform(new_data)
 
-    # Prediksi
-    prediction = model.predict(scaled_data)[0]
-
     # Tampilkan hasil
     st.subheader("Prediction Result")
     st.write(f"⚠️ Cancer Risk Prediction: **{'Positive' if prediction == 1 else 'Negative'}**")
