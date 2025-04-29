@@ -1,12 +1,16 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
-import pickle
+import numpy as np
+import joblib  # untuk load model
+from sklearn.preprocessing import StandardScaler
 
-st.set_page_config(layout="centered")
+# Load model dan scaler (ubah path sesuai file kamu)
+model = joblib.load("model.pkl")
+scaler = joblib.load("scaler.pkl")
+
 st.title("Cancer Prediction App")
 
-# Gunakan kolom agar inputnya bisa ditata dengan rapi di tengah
+# === Input dari User ===
 col1, col2 = st.columns(2)
 
 with col1:
@@ -17,41 +21,32 @@ with col1:
 
 with col2:
     gender = st.selectbox("Gender", ["Male", "Female"])
-    cancer_history_family = st.selectbox("Cancer History in Family", ["No", "Yes"])
+    cancer_history = st.selectbox("Cancer History in Family", ["No", "Yes"])
     smoker = st.selectbox("Smoker", ["No", "Yes"])
     sedentary = st.selectbox("Sedentary Lifestyle", ["No", "Yes"])
 
-# Mapping input categorical ke angka
+# Mapping input menjadi angka
 gender = 1 if gender == "Male" else 2
 cancer_type = {"Type A": 100, "Type B": 110, "Type C": 120}[cancer_type]
-radiation_therapy = 0 if radiation_therapy == "No" else 1
-cancer_history_family = 0 if cancer_history_family == "No" else 1
-smoker = 0 if smoker == "No" else 1
-sedentary = 0 if sedentary == "No" else 1
+radiation_therapy = 1 if radiation_therapy == "Yes" else 0
+cancer_history = 1 if cancer_history == "Yes" else 0
+smoker = 1 if smoker == "Yes" else 0
+sedentary = 1 if sedentary == "Yes" else 0
 
-# Susun input ke array
-input_data = np.array([[age, gender, blood_pressure, cancer_type,
-                        radiation_therapy, cancer_history_family,
-                        smoker, sedentary]])
+# Buat dataframe untuk prediksi
+new_data = pd.DataFrame([[
+    age, gender, blood_pressure, cancer_type, radiation_therapy,
+    cancer_history, smoker, sedentary
+]])
 
-# Tampilkan input user
-st.subheader("Data yang Dimasukkan")
-st.write(pd.DataFrame(input_data, columns=[
-    "Age", "Gender", "Blood_Pressure", "Cancer_Type",
-    "Radiation_Therapy", "Cancer_History_in_Family",
-    "Smoker", "Sedentary_Lifestyle"
-]))
+# === Tombol Prediksi ===
+if st.button("Predict"):
+    # Scaling
+    scaled_data = scaler.transform(new_data)
 
-# Load dan transformasi dengan scaler
-try:
-    with open("scaler.pkl", "rb") as f:
-        scaler = pickle.load(f)
-    input_scaled = scaler.transform(input_data)
+    # Prediksi
+    prediction = model.predict(scaled_data)[0]
 
-    st.subheader("Data Setelah Scaling")
-    st.write(pd.DataFrame(input_scaled))
-
-except FileNotFoundError:
-    st.error("File 'scaler.pkl' tidak ditemukan.")
-except Exception as e:
-    st.error(f"Terjadi error: {e}")
+    # Tampilkan hasil
+    st.subheader("Prediction Result")
+    st.write(f"⚠️ Cancer Risk Prediction: **{'Positive' if prediction == 1 else 'Negative'}**")
