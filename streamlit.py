@@ -5,7 +5,6 @@ import joblib  # untuk load model
 from sklearn.preprocessing import StandardScaler
 
 # Load model dan scaler (ubah path sesuai file kamu)
-model = joblib.load("model.pkl")
 scaler = joblib.load("scaler.pkl")
 
 st.title("Cancer Prediction App")
