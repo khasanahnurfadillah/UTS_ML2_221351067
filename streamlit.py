@@ -1,44 +1,49 @@
 import streamlit as st
 import numpy as np
 import tensorflow as tf
-import pickle
+import joblib
 
-# Load model TFLite
+# Load scaler
+scaler = joblib.load("scaler.pkl")
+
+# Load .tflite model
 interpreter = tf.lite.Interpreter(model_path="model_cancer_prediction.tflite")
 interpreter.allocate_tensors()
 
+# Get input/output details
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
-# Load scaler
-with open('scaler.pkl', 'rb') as f:
-    scaler = pickle.load(f)
-
+# App UI
 st.title("Cancer Prediction App")
+st.markdown("Masukkan nilai dari 3 fitur di bawah ini:")
 
-st.write("Masukkan data fitur berikut untuk prediksi kanker.")
+# Input user
+perimeter = st.number_input("Perimeter Mean", value=0.00, format="%.2f")
+area = st.number_input("Area Mean", value=0.00, format="%.2f")
+smoothness = st.number_input("Smoothness Mean", value=0.00, format="%.5f")
 
-# Form Input (ganti sesuai jumlah fitur datasetmu)
-radius_mean = st.number_input('Radius Mean', value=0.0)
-texture_mean = st.number_input('Texture Mean', value=0.0)
-perimeter_mean = st.number_input('Perimeter Mean', value=0.0)
-area_mean = st.number_input('Area Mean', value=0.0)
-smoothness_mean = st.number_input('Smoothness Mean', value=0.0)
+# Prediksi saat tombol ditekan
+if st.button("Prediksi"):
+    try:
+        # Buat array input
+        input_data = np.array([[perimeter, area, smoothness]])
+        
+        # Scaling
+        input_scaled = scaler.transform(input_data).astype(np.float32)
 
-# Buat input data
-input_data = np.array([[radius_mean, texture_mean, perimeter_mean, area_mean, smoothness_mean]])
+        # Set input ke model
+        interpreter.set_tensor(input_details[0]['index'], input_scaled)
 
-# Scaling input
-input_data_scaled = scaler.transform(input_data)
+        # Run inference
+        interpreter.invoke()
 
-# Prediction
-if st.button('Predict'):
-    interpreter.set_tensor(input_details[0]['index'], input_data_scaled.astype(np.float32))
-    interpreter.invoke()
-    output_data = interpreter.get_tensor(output_details[0]['index'])
-    prediction = np.argmax(output_data)
-    
-    if prediction == 0:
-        st.error("Prediksi: Malignant (Kanker Ganas)")
-    else:
-        st.success("Prediksi: Benign (Kanker Jinak)")
+        # Ambil output prediksi
+        prediction = interpreter.get_tensor(output_details[0]['index'])
+
+        # Tampilkan hasil
+        result = "Kanker Ganas" if prediction[0][0] > 0.5 else "Kanker Jinak"
+        st.success(f"Hasil Prediksi: {result} (Probabilitas: {prediction[0][0]:.2f})")
+
+    except Exception as e:
+        st.error(f"Terjadi error: {str(e)}")
